@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/nesaminua/claude-code-lsp-enforcement-kit/releases"><img src="https://img.shields.io/github/v/release/nesaminua/claude-code-lsp-enforcement-kit?style=for-the-badge&color=6366f1" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/nesaminua/claude-code-lsp-enforcement-kit?style=for-the-badge&color=10b981" alt="License"></a>
-  <a href="https://github.com/nesaminua/claude-code-lsp-enforcement-kit/stargazers"><img src="https://img.shields.io/github/stars/nesaminua/claude-code-lsp-enforcement-kit?style=for-the-badge&color=f59e0b" alt="Stars"></a>
+  <a href="https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit/releases"><img src="https://img.shields.io/github/v/release/sergicristia-ops/claude-code-lsp-enforcement-kit?style=for-the-badge&color=6366f1" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/sergicristia-ops/claude-code-lsp-enforcement-kit?style=for-the-badge&color=10b981" alt="License"></a>
+  <a href="https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit/stargazers"><img src="https://img.shields.io/github/stars/sergicristia-ops/claude-code-lsp-enforcement-kit?style=for-the-badge&color=f59e0b" alt="Stars"></a>
   <img src="https://img.shields.io/badge/Claude%20Code-compatible-8b5cf6?style=for-the-badge" alt="Claude Code compatible">
 </p>
 
@@ -100,7 +100,7 @@ No generic advice, no MCP server to install — every suggestion points at Claud
 **4. Install the hooks:**
 
 ```bash
-git clone https://github.com/nesaminua/claude-code-lsp-enforcement-kit.git
+git clone https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit.git
 cd claude-code-lsp-enforcement-kit
 bash install.sh
 # Windows: pwsh ./install.ps1
@@ -451,7 +451,7 @@ Tracks successful native `LSP` tool calls in a per-project state file. Other hoo
 ### Option 1: Give the repo to Claude Code (recommended)
 
 ```bash
-git clone https://github.com/nesaminua/claude-code-lsp-enforcement-kit.git
+git clone https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit.git
 cd claude-code-lsp-enforcement-kit
 ```
 
@@ -474,14 +474,14 @@ The install script:
 
 **macOS / Linux:**
 ```bash
-git clone https://github.com/nesaminua/claude-code-lsp-enforcement-kit.git
+git clone https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit.git
 cd claude-code-lsp-enforcement-kit
 bash install.sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-git clone https://github.com/nesaminua/claude-code-lsp-enforcement-kit.git
+git clone https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit.git
 cd claude-code-lsp-enforcement-kit
 pwsh ./install.ps1
 # or: powershell -ExecutionPolicy Bypass -File ./install.ps1
@@ -679,7 +679,7 @@ MIT — see [LICENSE](LICENSE)
 <p align="center">
   Made for Claude Code power users who care about token efficiency.
   <br>
-  <a href="https://github.com/nesaminua/claude-code-lsp-enforcement-kit/issues">Report an issue</a> &bull;
-  <a href="https://github.com/nesaminua/claude-code-lsp-enforcement-kit/releases">Releases</a> &bull;
+  <a href="https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit/issues">Report an issue</a> &bull;
+  <a href="https://github.com/sergicristia-ops/claude-code-lsp-enforcement-kit/releases">Releases</a> &bull;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
