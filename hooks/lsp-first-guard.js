@@ -67,7 +67,7 @@ process.stdin.on('end', () => {
 
   const suggestions = unsatisfied.map(sym => {
     const intent = intentForShape(classifySymbolShape(pattern, sym), sym);
-    return `  ${sym}:\n${buildSuggestion(sym, intent, '    ')}`;
+    return `  ${sym}:\n${buildSuggestion(sym, intent, '    ', searchPath, transcriptPath)}`;
   }).join('\n');
 
   process.stderr.write(

@@ -18,6 +18,16 @@ Call it with `operation` set to one of:
 | Type info / docs at a position | `hover` |
 | List a file's symbols | `documentSymbol` |
 
+**Every operation requires `filePath`, `line`, and `character` — including
+`workspaceSymbol`**, even though it searches the whole workspace by
+`query`, not just that one file. Don't spend a Bash `find`/`ls` call
+hunting for a "correct" anchor file — there isn't one: any real file
+already known in this conversation works (the file you're currently in,
+one just Read, anything). `line: 1, character: 1` is enough; `workspaceSymbol`
+ignores the position, it's only there because the tool schema requires it
+for every operation. If truly nothing is known yet, one file is enough —
+don't verify it's "the right kind" of file first.
+
 This is enforced, not just preferred: this kit's hooks actively block a
 Grep/Glob/Bash search once it looks like a symbol lookup (declaration-
 shaped, call-site-shaped, or a bare identifier), and separately block

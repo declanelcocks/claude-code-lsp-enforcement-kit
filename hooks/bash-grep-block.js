@@ -148,7 +148,9 @@ process.stdin.on('end', () => {
 
   const suggestions = unsatisfied.map(sym => {
     const intent = intentForShape(classifySymbolShape(cmd, sym), sym);
-    return `  ${sym}:\n${buildSuggestion(sym, intent, '    ')}`;
+    // No clean path param to extract from a raw shell command; resolveAnchorFile()
+    // falls back to cwd, which is where the blocked command itself would run anyway.
+    return `  ${sym}:\n${buildSuggestion(sym, intent, '    ', undefined, transcriptPath)}`;
   }).join('\n');
 
   process.stderr.write(

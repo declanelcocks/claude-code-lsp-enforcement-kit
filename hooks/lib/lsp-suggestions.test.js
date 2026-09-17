@@ -196,3 +196,187 @@ test('isLspSatisfied ignores a non-LSP tool_use (e.g. an mcp__ tool would not sa
   );
   assert.equal(satisfied, false);
 });
+
+// ── resolveAnchorFile / buildSuggestion anchor resolution ──────────────────
+// A grep/glob/bash block naming workspaceSymbol as an option is otherwise
+// unusable advice: the native tool requires a real filePath even for a
+// workspace-wide query, and left to the agent that becomes a multi-turn
+// Bash `find` hunt for any valid file (observed directly: `filePath: "."`
+// rejected, then a `.mod` file rejected as "no LSP server for this file
+// type", before a real source file was found three tool calls later).
+// These tests cover the fix: resolving one anchor file server-side, so
+// the suggestion is a single copy-pasteable call instead of a starting
+// point for that hunt.
+
+function withTempDir(build, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lsp-anchor-test-'));
+  try {
+    build(dir);
+    return fn(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('resolveAnchorFile finds a real source file under a directory hint', () => {
+  const found = withTempDir(
+    (dir) => {
+      fs.mkdirSync(path.join(dir, 'internal'));
+      fs.writeFileSync(path.join(dir, 'internal', 'service.go'), 'package internal\n');
+    },
+    (dir) => lib.resolveAnchorFile(dir),
+  );
+  assert.match(found, /service\.go$/);
+});
+
+test('resolveAnchorFile skips node_modules/.git/vendor and non-source files', () => {
+  const found = withTempDir(
+    (dir) => {
+      fs.mkdirSync(path.join(dir, 'node_modules'));
+      fs.writeFileSync(path.join(dir, 'node_modules', 'ignored.js'), '');
+      fs.writeFileSync(path.join(dir, 'README.md'), '');
+      fs.mkdirSync(path.join(dir, 'src'));
+      fs.writeFileSync(path.join(dir, 'src', 'index.ts'), '');
+    },
+    (dir) => lib.resolveAnchorFile(dir),
+  );
+  assert.match(found, /index\.ts$/);
+});
+
+test('resolveAnchorFile returns null (not throw) when nothing matches within the bound', () => {
+  const found = withTempDir(
+    (dir) => { fs.writeFileSync(path.join(dir, 'README.md'), ''); },
+    (dir) => lib.resolveAnchorFile(dir),
+  );
+  assert.equal(found, null);
+});
+
+test('resolveAnchorFile falls back to cwd for a missing/empty hint', () => {
+  // No assertion on the exact path — just that it doesn't throw and
+  // returns something resolvable from this repo's own source tree.
+  const found = lib.resolveAnchorFile(undefined);
+  assert.equal(typeof found, 'string');
+});
+
+test('buildSuggestion gives a copy-pasteable workspaceSymbol call when an anchor resolves', () => {
+  const out = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'withdrawal.go'), 'package service\n'),
+    (dir) => lib.buildSuggestion('GetWithdrawalDetails', 'symbol_search', '  ', dir),
+  );
+  assert.match(out, /operation "workspaceSymbol"/);
+  assert.match(out, /filePath "/);
+  assert.match(out, /query "GetWithdrawalDetails"/);
+});
+
+test('buildSuggestion falls back to advisory phrasing when no anchor can be resolved', () => {
+  const out = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'README.md'), ''),
+    (dir) => lib.buildSuggestion('GetWithdrawalDetails', 'symbol_search', '  ', dir),
+  );
+  assert.doesNotMatch(out, /operation "workspaceSymbol"/);
+  assert.match(out, /LSP tool — operation: workspaceSymbol/);
+});
+
+test('buildSuggestion for a "bare" intent still names all four ops, but recommends workspaceSymbol with a concrete call', () => {
+  const out = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'main.go'), 'package main\n'),
+    (dir) => lib.buildSuggestion('someSymbol', 'bare', '  ', dir),
+  );
+  assert.match(out, /goToDefinition or findReferences or goToImplementation or workspaceSymbol/);
+  assert.match(out, /operation "workspaceSymbol"/);
+  assert.match(out, /recommended first/);
+});
+
+test('buildSuggestion for definition/callsite/references intents stays advisory-only (no fabricated position)', () => {
+  const out = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'main.go'), 'package main\n'),
+    (dir) => lib.buildSuggestion('handleSubmit', 'definition', '  ', dir),
+  );
+  assert.doesNotMatch(out, /operation "workspaceSymbol"/);
+  assert.match(out, /goToDefinition or documentSymbol/);
+});
+
+// ── resolveKnownPosition: chain a prior LSP result into an exact position ──
+// goToDefinition/findReferences/etc. need a real line+character, which a
+// hook never has from a Grep/Bash pattern alone. But once *any* prior LSP
+// call this session already surfaced the symbol's file:line — even for a
+// different operation than the one now being suggested — that's enough to
+// hand back a fully concrete call instead of making the agent Read the
+// file and guess a column (observed directly: a first findReferences
+// attempt failed with "no identifier found" on a guessed column).
+
+test('resolveKnownPosition resolves an exact position from a prior workspaceSymbol result (multi-file listing)', () => {
+  const result = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'withdrawal.go'), [
+      'package service',
+      '',
+      'func (s *Service) GetWithdrawalDetails(ctx context.Context) error {',
+      '\treturn nil',
+      '}',
+    ].join('\n')),
+    (dir) => withTranscript(
+      [{ message: { content: [{
+        type: 'tool_result', tool_use_id: 'tu_1',
+        content: `Found 1 symbol in workspace:\n\n${dir}/withdrawal.go:\n  GetWithdrawalDetails (Function) - Line 3 in service`,
+      }] } }],
+      (transcriptPath) => lib.resolveKnownPosition(transcriptPath, 'GetWithdrawalDetails'),
+    ),
+  );
+  assert.equal(result.line, 3);
+  assert.match(result.filePath, /withdrawal\.go$/);
+  assert.equal(result.character, 19); // 1-based column of "GetWithdrawalDetails" on that line
+});
+
+test('resolveKnownPosition resolves from a single-file documentSymbol result using filePathHint', () => {
+  const result = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'a.ts'), 'const x = 1;\nfunction handleSubmit() {}\n'),
+    (dir) => withTranscript(
+      [{ message: { content: [{
+        type: 'tool_result', tool_use_id: 'tu_2',
+        content: 'handleSubmit (Function) - Line 2',
+      }] } }],
+      (transcriptPath) => lib.resolveKnownPosition(transcriptPath, 'handleSubmit', path.join(dir, 'a.ts')),
+    ),
+  );
+  assert.equal(result.line, 2);
+  assert.equal(result.character, 10);
+});
+
+test('resolveKnownPosition returns null when no prior result mentions the symbol', () => {
+  const result = withTranscript(
+    [{ message: { content: [{ type: 'tool_result', tool_use_id: 'tu_3', content: 'Found 0 symbols' }] } }],
+    (transcriptPath) => lib.resolveKnownPosition(transcriptPath, 'NeverMentioned'),
+  );
+  assert.equal(result, null);
+});
+
+test('buildSuggestion uses a chained exact position for a positional op when available, over advisory text', () => {
+  const out = withTempDir(
+    (dir) => fs.writeFileSync(path.join(dir, 'withdrawal.go'), [
+      'package service',
+      '',
+      'func (s *Service) GetWithdrawalDetails(ctx context.Context) error {',
+      '\treturn nil',
+      '}',
+    ].join('\n')),
+    (dir) => withTranscript(
+      [{ message: { content: [{
+        type: 'tool_result', tool_use_id: 'tu_4',
+        content: `Found 1 symbol in workspace:\n\n${dir}/withdrawal.go:\n  GetWithdrawalDetails (Function) - Line 3 in service`,
+      }] } }],
+      (transcriptPath) => lib.buildSuggestion('GetWithdrawalDetails', 'references', '  ', undefined, transcriptPath),
+    ),
+  );
+  assert.match(out, /operation "findReferences"/);
+  assert.match(out, /line 3/);
+  assert.match(out, /character 19/);
+  assert.doesNotMatch(out, /LSP tool — operation: findReferences \(for/);
+});
+
+// ── buildWarmupInstructions: any LSP call satisfies Gate 1, not just documentSymbol ──
+
+test('buildWarmupInstructions says any successful LSP call satisfies warmup, not just documentSymbol', () => {
+  const out = lib.buildWarmupInstructions('  ').join('\n');
+  assert.match(out, /[Aa]ny successful LSP call/);
+  assert.match(out, /documentSymbol/); // still offered as the cheapest fallback option
+});

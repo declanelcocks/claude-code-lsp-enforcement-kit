@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { buildWarmupInstructions, buildFileWarmupCall } = require('./lib/detect-lsp-provider');
+const { buildWarmupInstructions, buildFileWarmupCall } = require('./lib/lsp-suggestions');
 
 /**
  * Build a copy-pasteable warmup call parametrized by the exact file the

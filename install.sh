@@ -19,6 +19,15 @@ echo "[1/4] Directories ready"
 cp "$SCRIPT_DIR/hooks/"*.js "$HOOKS_DIR/"
 cp "$SCRIPT_DIR/hooks/lib/"*.js "$HOOKS_DIR/lib/"
 cp "$SCRIPT_DIR/rules/lsp-first.md" "$RULES_DIR/"
+
+# Migration: installs predating the native-LSP-only redesign left
+# lib/detect-lsp-provider.js behind — cp above never removes files that
+# no longer exist in the repo. A stale copy is more than clutter: it can
+# mask a real bug (e.g. a hook still requiring it) instead of surfacing
+# a clear MODULE_NOT_FOUND, so remove it explicitly rather than relying
+# on cp's copy-only semantics.
+rm -f "$HOOKS_DIR/lib/detect-lsp-provider.js"
+
 echo "[2/4] Copied 8 hooks + lib + 1 rule"
 
 # 3. Merge into settings.json (node for safe JSON manipulation)
